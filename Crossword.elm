@@ -2,6 +2,8 @@ module Crossword exposing (..)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (..)
+import Json.Decode as Json
 import String exposing (fromChar)
 
 
@@ -72,17 +74,17 @@ sampleSquares =
 
 type Msg
   = NoOp
-  | EnterLetter Char CoOrd
+  | EnterLetter CoOrd String
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    EnterLetter char coord ->
+    EnterLetter coord letter ->
       let
         updateSquare square =
           if square.coord == coord then
-            { square | letter = Just char }
+            (Debug.log "Model changed: " { square | letter = Just (Maybe.withDefault ' ' (List.head (String.toList letter))) })
           else
             square
       in
@@ -96,7 +98,7 @@ update msg model =
 -- VIEW
 
 
-view : Model -> Html msg
+view : Model -> Html Msg
 view model =
   table
     [ class "crossword"
@@ -104,19 +106,19 @@ view model =
     (List.map viewRow model.rows)
 
 
-viewRow : Row -> Html msg
+viewRow : Row -> Html Msg
 viewRow row =
     tr []
        (List.map viewSquare row)
 
-viewSquare : Square -> Html msg
+viewSquare : Square -> Html Msg
 viewSquare square =
   td
     [ class (classForSquare square)
     -- , contenteditable square.fillable
     ]
     [ numberForSquare square
-    , letterForSquare square
+    , letterInput square
     ]
 
 numberForSquare : Square -> Html msg
@@ -131,14 +133,17 @@ numberForSquare square =
         [ text char
         ]
 
-letterForSquare : Square -> Html msg
-letterForSquare square =
-  div [ class "letter"
-      , contenteditable square.fillable
-      ]
-      [ text (fromChar (Maybe.withDefault ' ' square.letter))
-      ]
-
+letterInput : Square -> Html Msg
+letterInput square =
+  if square.fillable
+  then input [ class "letter"
+             , type' "text"
+             , value (fromChar (Maybe.withDefault ' ' square.letter))
+             , on "input" (Json.map (EnterLetter square.coord) targetValue)
+             ]
+             []
+  else div [ class "black" ]
+           [ ]
 
 classForSquare : Square -> String
 classForSquare square =

@@ -8,7 +8,7 @@ main =
     App.program
        { init = initialModel
        , view = view
-       , update = update
+       , update = (\msg model -> update msg model)
        , subscriptions = \_ -> Sub.none
        }
 

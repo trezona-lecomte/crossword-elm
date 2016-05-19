@@ -9,21 +9,26 @@ table.crossword,
     width: 5em;
     height: 5em;
     vertical-align: top;
-    background-color: white;
 }
-.crossword .number
+.number
 {
     height: 25%;
     vertical-align: top;
 }
-.crossword .letter
+.letter
 {
     height: 75%;
-    vertical-align: center;
+    width: 80%;
+    /* outline: none; */
+    /* vertical-align: middle; */
     text-align: center;
     font-size: 200%;
 }
-.crossword .black
+.white
+{
+    background-color: white;
+}
+.black
 {
     background-color: black;
 }
