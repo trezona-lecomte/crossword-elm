@@ -1,0 +1,29 @@
+table.crossword,
+.crossword td
+ {
+     border: 1px solid black;
+     border-collapse: collapse;
+ }
+.crossword td
+{
+    width: 5em;
+    height: 5em;
+    vertical-align: top;
+    background-color: white;
+}
+.crossword .number
+{
+    height: 25%;
+    vertical-align: top;
+}
+.crossword .letter
+{
+    height: 75%;
+    vertical-align: center;
+    text-align: center;
+    font-size: 200%;
+}
+.crossword .black
+{
+    background-color: black;
+}
