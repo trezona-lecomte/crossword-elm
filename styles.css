@@ -1,8 +1,8 @@
 table.crossword,
 .crossword td
  {
-     border: 1px solid black;
-     border-collapse: collapse;
+    border: 1px solid black;
+    border-collapse: collapse;
  }
 .crossword td
 {
@@ -19,7 +19,7 @@ table.crossword,
 {
     height: 75%;
     width: 80%;
-    /* outline: none; */
+    border: 0;
     /* vertical-align: middle; */
     text-align: center;
     font-size: 200%;

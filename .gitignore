@@ -4,3 +4,4 @@ elm-stuff/
 repl-temp-*
 # compiled elm:
 elm.js
+index.html
