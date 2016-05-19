@@ -32,3 +32,4 @@ table.crossword,
 {
     background-color: black;
 }
+input:focus {outline:none;}
