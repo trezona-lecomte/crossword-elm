@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Html.App as App
-import Crossword exposing (Model, initialModel, update, view)
+import Crossword exposing (initialModel, update, view)
 
 main : Program Never
 main =

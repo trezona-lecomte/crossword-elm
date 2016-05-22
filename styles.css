@@ -1,9 +1,12 @@
-table.crossword,
 .crossword td
  {
     border: 1px solid black;
     border-collapse: collapse;
  }
+.solved
+{
+    border: 3px solid green;
+}
 .crossword td
 {
     width: 5em;

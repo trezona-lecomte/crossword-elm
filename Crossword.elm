@@ -1,71 +1,23 @@
 module Crossword exposing (..)
 
+import Debug
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Json.Decode as Json
+import Http
+import List.Extra exposing (groupBy)
+import Task
+import Json.Decode
+import Json.Encode
 import String exposing (fromChar)
+import API exposing (..)
 
 
 -- MODEL
 
-
-type alias Model =
-  { rows : List Row
-  }
-
-type alias Row = List Square
-
-type alias Square =
-  { number : Maybe Int
-  , letter : Maybe String
-  , fillable : Bool
-  , coord : CoOrd
-  }
-
-
-type alias CoOrd =
-  ( Int, Int )
-
-
-initialModel : (Model, Cmd Msg)
+initialModel : (Crossword, Cmd Msg)
 initialModel =
-  ({ rows = sampleSquares }, Cmd.none)
-
-
-sampleSquares : List Row
-sampleSquares =
-  [ [ Square (Just 1) Nothing True  ( 0, 0 )
-    , Square Nothing  Nothing True  ( 0, 1 )
-    , Square (Just 2) Nothing True  ( 0, 2 )
-    , Square Nothing  Nothing True  ( 0, 3 )
-    , Square (Just 3) Nothing True  ( 0, 4 )
-    ]
-  , [ Square Nothing  Nothing True  ( 1, 0 )
-    , Square Nothing  Nothing False ( 1, 1 )
-    , Square Nothing  Nothing True  ( 1, 2 )
-    , Square Nothing  Nothing False ( 1, 3 )
-    , Square Nothing  Nothing True  ( 1, 4 )
-    ]
-  , [ Square (Just 4) Nothing True  ( 2, 0 )
-    , Square Nothing  Nothing True  ( 2, 1 )
-    , Square Nothing  Nothing True  ( 2, 2 )
-    , Square Nothing  Nothing True  ( 2, 3 )
-    , Square Nothing  Nothing True  ( 2, 4 )
-    ]
-  , [ Square Nothing  Nothing True  ( 3, 0 )
-    , Square Nothing  Nothing False ( 3, 1 )
-    , Square Nothing  Nothing True  ( 3, 2 )
-    , Square Nothing  Nothing False ( 3, 3 )
-    , Square Nothing  Nothing True  ( 3, 4 )
-    ]
-  , [ Square (Just 5) Nothing True  ( 4, 0 )
-    , Square Nothing  Nothing True  ( 4, 1 )
-    , Square Nothing  Nothing True  ( 4, 2 )
-    , Square Nothing  Nothing True  ( 4, 3 )
-    , Square Nothing  Nothing True  ( 4, 4 )
-    ]
-  ]
+  ({ squares = [] }, Cmd.none)
 
 
 
@@ -74,43 +26,129 @@ sampleSquares =
 
 type Msg
   = NoOp
-  | EnterLetter CoOrd String
+  | EnterLetter X Y String
+  | FetchCrossword
+  | ReceiveCrossword Crossword
+  | SubmitCrossword Crossword
+  | FetchFail Http.Error
 
 
-update : Msg -> Model -> (Model, Cmd Msg)
+update : Msg -> Crossword -> (Crossword, Cmd Msg)
 update msg model =
   case msg of
-    EnterLetter coord letter ->
+    EnterLetter x y letter ->
       let
         updateSquare square =
-          if square.coord == coord then
-            { square | letter = Just (String.left 1 letter) }
+          if square.x == x && square.y == y then
+            { square | guessedLetter = Just (String.left 1 letter) }
           else
             square
       in
-        ({ model | rows = List.map (List.map updateSquare) model.rows }, Cmd.none)
+        ({ model | squares = List.map updateSquare model.squares }, Cmd.none)
+
+    FetchCrossword ->
+      (model, getCrossword "b520ac22-acab-43ad-8431-acdae3aec390")
+
+    ReceiveCrossword crossword ->
+      (crossword, Cmd.none)
+
+    SubmitCrossword crossword ->
+      (model, putCrossword "b520ac22-acab-43ad-8431-acdae3aec390" crossword)
+
+    FetchFail _ ->
+      (model, Cmd.none)
 
     NoOp ->
       (model, Cmd.none)
+
+
+getCrossword : String -> Cmd Msg
+getCrossword uuid =
+  let
+    request =
+      { verb =
+          "GET"
+      , headers =
+          [ ( "Content-Type", "application/json" ) ]
+      , url =
+          "http://localhost:8081/"
+            ++ "crosswords"
+            ++ "/"
+            ++ (uuid |> Http.uriEncode)
+      , body =
+          Http.empty
+      }
+  in
+    Task.perform FetchFail ReceiveCrossword
+          (Http.fromJson decodeCrossword
+             (Http.send Http.defaultSettings request))
+
+putCrossword : String -> Crossword -> Cmd Msg
+putCrossword uuid crossword =
+  let
+    request =
+      { verb =
+          "PUT"
+      , headers =
+          [ ( "Content-Type", "application/json" ) ]
+      , url =
+          "http://localhost:8081/"
+            ++ "crosswords"
+            ++ "/"
+            ++ (uuid |> Http.uriEncode)
+      , body =
+          Http.string (Json.Encode.encode 0 (encodeCrossword crossword))
+      }
+  in
+    Task.perform FetchFail ReceiveCrossword
+          (Http.fromJson decodeCrossword
+             (Http.send Http.defaultSettings request))
 
 
 
 -- VIEW
 
 
-view : Model -> Html Msg
-view model =
-  table
-    [ class "crossword"
-    ]
-    ((node "link" [ rel "stylesheet", href "styles.css" ] [])
-    :: (List.map viewRow model.rows))
+view : Crossword -> Html Msg
+view crossword =
+  div []
+        ((node "link" [ rel "stylesheet", href "styles.css" ] [])
+        :: [ button [ onClick FetchCrossword ] [ text "Play!" ]
+           , table
+               [ class (classForTable crossword)
+               ]
+               (rows crossword.squares)
+           , button [ onClick (SubmitCrossword crossword) ] [ text "Submit!" ]
+           , viewClues
+           ]
+        )
+
+classForTable : Crossword -> String
+classForTable crossword =
+  if Debug.log "All correct: " (List.all correct (List.filter .fillable crossword.squares))
+  then "crossword solved"
+  else "crossword"
+
+correct : Square -> Bool
+correct square =
+  case square.guessedLetter of
+    Nothing -> False
+    (Just l) -> String.toLower l == String.toLower square.letter
 
 
-viewRow : Row -> Html Msg
-viewRow row =
-    tr []
-       (List.map viewSquare row)
+rows : List Square -> List (Html Msg)
+rows squares =
+  let
+    sorted = List.sortBy .y squares
+    grouped = groupBy (\a b -> a.y == b.y) sorted
+  in
+    List.map viewRow (Debug.log "grouped: " (List.map (\r -> List.sortBy .x r) grouped))
+
+
+viewRow : List Square -> Html Msg
+viewRow squares =
+    tr [ ]
+       (List.map viewSquare squares)
 
 viewSquare : Square -> Html Msg
 viewSquare square =
@@ -138,9 +176,9 @@ letterInput square =
   if square.fillable
   then input [ class "letter"
              , type' "text"
-             , placeholder (Maybe.withDefault " " square.letter)
+             , placeholder (Maybe.withDefault " " square.guessedLetter)
              , maxlength 1
-             , onInput (EnterLetter square.coord)
+             , onInput (EnterLetter square.x square.y)
              ]
              []
   else div [ class "black" ]
@@ -151,3 +189,22 @@ classForSquare square =
   if square.fillable
   then "white"
   else "black"
+
+viewClues : Html Msg
+viewClues =
+  div []
+      [ div []
+            [ text "1 Down: Aesopian ending" ]
+      , div []
+            [ text "2 Down: Complex contrapuntal music" ]
+      , div []
+            [ text "3 Down: Cavern, in poetry" ]
+      , div []
+            [ text "--" ]
+      , div []
+            [ text "1 Across: Group with rackets" ]
+      , div []
+            [ text "4 Across: One way to turn" ]
+      , div []
+            [ text "5 Across: Loyal vassal" ]
+      ]
